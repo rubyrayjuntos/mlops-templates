@@ -67,10 +67,26 @@ on:
         type: string
         description: 'location of Terraform plan'
         required: true
-      terraform_plan_vnet:
+      enable_vnet:
+        type: boolean
+        description: 'Deploy VNet + private endpoints (maps to enable_private_endpoints)'
+        required: false
+        default: false
+      vnet_address_space:
         type: string
-        description: 'vnet of Terraform plan'
-        required: true
+        description: 'VNet address space CIDR'
+        required: false
+        default: '10.0.0.0/16'
+      training_subnet_address_prefix:
+        type: string
+        description: 'Training/compute subnet CIDR'
+        required: false
+        default: '10.0.1.0/24'
+      endpoints_subnet_address_prefix:
+        type: string
+        description: 'Private endpoints subnet CIDR'
+        required: false
+        default: '10.0.2.0/24'
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -193,6 +209,10 @@ jobs:
         -var "environment=${{ inputs.environment }}" \
         -var "enable_aml_computecluster=${{ inputs.enable_aml_computecluster }}" \
         -var "enable_monitoring=${{ inputs.enable_monitoring }}" \
+        -var "enable_private_endpoints=${{ inputs.enable_vnet }}" \
+        -var "vnet_address_space=${{ inputs.vnet_address_space }}" \
+        -var "training_subnet_address_prefix=${{ inputs.training_subnet_address_prefix }}" \
+        -var "endpoints_subnet_address_prefix=${{ inputs.endpoints_subnet_address_prefix }}" \
         -var "github_actions_service_principal_id=$SP_OBJECT_ID"
       env:
         ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -302,7 +322,11 @@ jobs:
           -var="prefix=${{ inputs.namespace }}" \
           -var="environment=${{ inputs.environment }}" \
           -var="postfix=${{ inputs.postfix }}" \
-          -var="enable_aml_computecluster=${{ inputs.enable_aml_computecluster }}"
+          -var="enable_aml_computecluster=${{ inputs.enable_aml_computecluster }}" \
+          -var="enable_private_endpoints=${{ inputs.enable_vnet }}" \
+          -var="vnet_address_space=${{ inputs.vnet_address_space }}" \
+          -var="training_subnet_address_prefix=${{ inputs.training_subnet_address_prefix }}" \
+          -var="endpoints_subnet_address_prefix=${{ inputs.endpoints_subnet_address_prefix }}"
       env:
         ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
