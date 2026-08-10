@@ -45,16 +45,22 @@ jobs:
       - name: update-extension
         run: az extension update -n ml
       - name: create-or-update-endpoint
+        env:
+          ENDPOINT_TYPE: ${{ inputs.endpoint_type }}
+          ENDPOINT_NAME: ${{ inputs.endpoint_name }}
+          ENDPOINT_FILE: ${{ github.workspace }}/${{ inputs.endpoint_file }}
+          RESOURCE_GROUP: ${{ inputs.resource_group }}
+          WORKSPACE_NAME: ${{ inputs.workspace_name }}
         run: |
-          endpoint_name=$(az ml ${{ inputs.endpoint_type }}-endpoint show --name ${{ inputs.endpoint_name }} --resource-group ${{ inputs.resource_group }} --workspace-name ${{ inputs.workspace_name }} --query name -o tsv 2>/dev/null || echo "")
-          if [[ -z "$endpoint_name" ]]; then
+          existing_name=$(az ml "${ENDPOINT_TYPE}-endpoint" show --name "$ENDPOINT_NAME" --resource-group "$RESOURCE_GROUP" --workspace-name "$WORKSPACE_NAME" --query name -o tsv 2>/dev/null || echo "")
+          if [[ -z "$existing_name" ]]; then
             echo "Endpoint does not exist. Creating..."
-            az ml ${{ inputs.endpoint_type }}-endpoint create --name ${{ inputs.endpoint_name }} \
-            -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
-            --workspace-name ${{ inputs.workspace_name }}
+            az ml "${ENDPOINT_TYPE}-endpoint" create --name "$ENDPOINT_NAME" \
+            -f "$ENDPOINT_FILE" --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$WORKSPACE_NAME"
           else
-            echo "Endpoint '${{ inputs.endpoint_name }}' already exists. Updating..."
-            az ml ${{ inputs.endpoint_type }}-endpoint update --name ${{ inputs.endpoint_name }} \
-            -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
-            --workspace-name ${{ inputs.workspace_name }}
+            echo "Endpoint '$ENDPOINT_NAME' already exists. Updating..."
+            az ml "${ENDPOINT_TYPE}-endpoint" update --name "$ENDPOINT_NAME" \
+            -f "$ENDPOINT_FILE" --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$WORKSPACE_NAME"
           fi
