@@ -24,6 +24,7 @@ try {
     var resource_group = String(configYaml["variables"]["resource_group"]);
     var location = String(configYaml["variables"]["location"]);
     var aml_workspace = String(configYaml["variables"]["aml_workspace"]);
+    var storage_account = String(configYaml["variables"]["storage_account"]);
 
     var terraform_version = String(configYaml["variables"]["terraform_version"]);
     var terraform_workingdir = String(configYaml["variables"]["terraform_workingdir"]);
@@ -41,6 +42,9 @@ try {
     }
     if(checkGenerateEntity(aml_workspace)){
         aml_workspace = "mlw-"+namespace+"-"+postfix+environment;
+    }
+    if(checkGenerateEntity(storage_account)){
+        storage_account = "st"+namespace+postfix+environment;
     }
 
     if(checkGenerateEntity(terraform_st_resource_group)){
@@ -60,6 +64,7 @@ try {
     core.setOutput("enable_aml_computecluster",enable_aml_computecluster);
     core.setOutput("resource_group",resource_group);
     core.setOutput("aml_workspace", aml_workspace);
+    core.setOutput("storage_account", storage_account);
     core.setOutput("bep", batch_endpoint_name);
     core.setOutput("oep", online_endpoint_name);
     core.setOutput("terraform_version", terraform_version);

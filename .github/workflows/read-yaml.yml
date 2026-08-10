@@ -31,6 +31,9 @@ on:
       aml_workspace:
         description: "The aml_workspace to use"
         value: ${{ jobs.read-yaml.outputs.aml_workspace }}
+      storage_account:
+        description: "The AML workspace storage account name"
+        value: ${{ jobs.read-yaml.outputs.storage_account }}
       bep:
         description: "The batch endpoint"
         value: ${{ jobs.read-yaml.outputs.bep }}
@@ -70,6 +73,7 @@ jobs:
       enable_monitoring: ${{  steps.read_action_js.outputs.enable_monitoring }}
       resource_group: ${{  steps.read_action_js.outputs.resource_group }}
       aml_workspace: ${{  steps.read_action_js.outputs.aml_workspace }}
+      storage_account: ${{  steps.read_action_js.outputs.storage_account }}
       bep: ${{  steps.read_action_js.outputs.bep }}
       oep: ${{  steps.read_action_js.outputs.oep }}
       terraform_version: ${{  steps.read_action_js.outputs.terraform_version }}

@@ -21,6 +21,11 @@ on:
       deployment_name:
         required: true
         type: string
+      extra_args:
+        description: "Optional extra arguments appended verbatim to az ml <type>-deployment create (e.g. '--set environment_variables.MONITORING_STORAGE_ACCOUNT=stexample'). Leave empty for no override."
+        required: false
+        type: string
+        default: ""
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -51,4 +56,4 @@ jobs:
         run: |
           az ml ${{ inputs.endpoint_type }}-deployment create --name ${{ inputs.deployment_name }} --endpoint ${{ inputs.endpoint_name }} \
           -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
-          --workspace-name ${{ inputs.workspace_name }}
+          --workspace-name ${{ inputs.workspace_name }} ${{ inputs.extra_args != '' && inputs.extra_args || '' }}
