@@ -52,8 +52,21 @@ jobs:
         run: az extension add -n ml -y
       - name: update-extension
         run: az extension update -n ml
-      - name: create-batch-deployment
+      - name: create-or-replace-deployment
+        env:
+          ENDPOINT_TYPE: ${{ inputs.endpoint_type }}
+          DEPLOYMENT_NAME: ${{ inputs.deployment_name }}
+          ENDPOINT_NAME: ${{ inputs.endpoint_name }}
+          ENDPOINT_FILE: ${{ github.workspace }}/${{ inputs.endpoint_file }}
+          RESOURCE_GROUP: ${{ inputs.resource_group }}
+          WORKSPACE_NAME: ${{ inputs.workspace_name }}
+          EXTRA_ARGS: ${{ inputs.extra_args }}
         run: |
-          az ml ${{ inputs.endpoint_type }}-deployment create --name ${{ inputs.deployment_name }} --endpoint ${{ inputs.endpoint_name }} \
-          -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
-          --workspace-name ${{ inputs.workspace_name }} ${{ inputs.extra_args != '' && inputs.extra_args || '' }}
+          existing_name=$(az ml "${ENDPOINT_TYPE}-deployment" show --name "$DEPLOYMENT_NAME" --endpoint "$ENDPOINT_NAME" --resource-group "$RESOURCE_GROUP" --workspace-name "$WORKSPACE_NAME" --query name -o tsv 2>/dev/null || echo "")
+          if [[ -n "$existing_name" ]]; then
+            echo "Deployment '$DEPLOYMENT_NAME' already exists (possibly from a prior failed attempt) - deleting before recreating, since properties like instance_type may not apply via an in-place update."
+            az ml "${ENDPOINT_TYPE}-deployment" delete --name "$DEPLOYMENT_NAME" --endpoint "$ENDPOINT_NAME" --resource-group "$RESOURCE_GROUP" --workspace-name "$WORKSPACE_NAME" --yes
+          fi
+          az ml "${ENDPOINT_TYPE}-deployment" create --name "$DEPLOYMENT_NAME" --endpoint "$ENDPOINT_NAME" \
+          -f "$ENDPOINT_FILE" --resource-group "$RESOURCE_GROUP" \
+          --workspace-name "$WORKSPACE_NAME" $EXTRA_ARGS
