@@ -1,25 +1,17 @@
-# Azure MLOps (v2) Solution Accelerator
+# mlops-templates (fork)
 
-Welcome to the MLOps (v2) solution accelerator repository! This project is intended to serve as the starting point for MLOps implementation in Azure. The main repository from where you can start can be found in this [main README file](https://github.com/Azure/mlops-v2/blob/main/README.md)
+Fork of [`Azure/mlops-templates`](https://github.com/Azure/mlops-templates), maintained as the shared pipeline library for a small MLOps v2 factory — see [`rubyrayjuntos/azure-mlops`](https://github.com/rubyrayjuntos/azure-mlops) for the full architecture writeup and the first project generated from this factory.
 
-## Contributing
+## What's different from upstream
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+- Marketplace actions (`azure/login`, `actions/checkout`) pinned to commit SHAs across all workflow files that use them — upstream floats on major-version tags.
+- `read_yaml_action/index.js`: fixed a boolean-parsing bug where `Boolean(anyNonEmptyString)` always evaluated `true`, silently forcing `enable_monitoring`/`enable_aml_computecluster` regardless of config.
+- `tf-gha-install-terraform.yml` and `read-yaml.yml` already carry these fixes and are referenced by consuming projects via `@main` (not a pinned SHA — see the architecture doc linked above for why that's deliberate for this fork specifically, vs. the marketplace-action pins above).
 
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
+## Usage
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+Reference workflows here as `uses: rubyrayjuntos/mlops-templates/.github/workflows/<name>.yml@main` from a project's own pipeline files. Requires the project's repo to have `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` secrets and an OIDC federated credential set up for the calling app registration.
 
-## Trademarks
+---
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+[Upstream accelerator README](https://github.com/Azure/mlops-v2/blob/main/README.md)
