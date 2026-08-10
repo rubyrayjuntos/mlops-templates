@@ -44,8 +44,17 @@ jobs:
         run: az extension add -n ml -y
       - name: update-extension
         run: az extension update -n ml
-      - name: create-environment-from-file
+      - name: create-or-update-endpoint
         run: |
-          az ml ${{ inputs.endpoint_type }}-endpoint create --name ${{ inputs.endpoint_name }} \
-          -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
-          --workspace-name ${{ inputs.workspace_name }}
+          endpoint_name=$(az ml ${{ inputs.endpoint_type }}-endpoint show --name ${{ inputs.endpoint_name }} --resource-group ${{ inputs.resource_group }} --workspace-name ${{ inputs.workspace_name }} --query name -o tsv 2>/dev/null || echo "")
+          if [[ -z "$endpoint_name" ]]; then
+            echo "Endpoint does not exist. Creating..."
+            az ml ${{ inputs.endpoint_type }}-endpoint create --name ${{ inputs.endpoint_name }} \
+            -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
+            --workspace-name ${{ inputs.workspace_name }}
+          else
+            echo "Endpoint '${{ inputs.endpoint_name }}' already exists. Updating..."
+            az ml ${{ inputs.endpoint_type }}-endpoint update --name ${{ inputs.endpoint_name }} \
+            -f ${{ github.workspace }}/${{ inputs.endpoint_file }} --resource-group ${{ inputs.resource_group }} \
+            --workspace-name ${{ inputs.workspace_name }}
+          fi
