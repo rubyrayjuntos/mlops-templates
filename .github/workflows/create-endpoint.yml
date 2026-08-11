@@ -18,6 +18,14 @@ on:
       endpoint_type:
         required: true
         type: string
+      storage_account_name:
+        required: false
+        type: string
+        default: ""
+      storage_container_name:
+        required: false
+        type: string
+        default: ""
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -64,3 +72,86 @@ jobs:
             -f "$ENDPOINT_FILE" --resource-group "$RESOURCE_GROUP" \
             --workspace-name "$WORKSPACE_NAME"
           fi
+      - name: authorize-endpoint-storage
+        if: ${{ inputs.storage_account_name != '' || inputs.storage_container_name != '' }}
+        env:
+          ENDPOINT_TYPE: ${{ inputs.endpoint_type }}
+          ENDPOINT_NAME: ${{ inputs.endpoint_name }}
+          RESOURCE_GROUP: ${{ inputs.resource_group }}
+          WORKSPACE_NAME: ${{ inputs.workspace_name }}
+          STORAGE_ACCOUNT_NAME: ${{ inputs.storage_account_name }}
+          STORAGE_CONTAINER_NAME: ${{ inputs.storage_container_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$STORAGE_ACCOUNT_NAME" || -z "$STORAGE_CONTAINER_NAME" ]]; then
+            echo "Both storage_account_name and storage_container_name are required when endpoint storage authorization is enabled." >&2
+            exit 1
+          fi
+
+          if [[ "$ENDPOINT_TYPE" != "online" ]]; then
+            echo "Endpoint storage authorization is supported only for online endpoints." >&2
+            exit 1
+          fi
+
+          principal_id=$(az ml online-endpoint show \
+            --name "$ENDPOINT_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --workspace-name "$WORKSPACE_NAME" \
+            --query identity.principal_id \
+            --output tsv)
+          if [[ -z "$principal_id" ]]; then
+            echo "Online endpoint '$ENDPOINT_NAME' does not expose a managed identity principal ID." >&2
+            exit 1
+          fi
+
+          storage_account_id=$(az storage account show \
+            --name "$STORAGE_ACCOUNT_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query id \
+            --output tsv)
+          container_scope="${storage_account_id}/blobServices/default/containers/${STORAGE_CONTAINER_NAME}"
+
+          az resource show \
+            --ids "$container_scope" \
+            --api-version 2023-05-01 \
+            --output none
+
+          assignment_id=$(az role assignment list \
+            --assignee "$principal_id" \
+            --scope "$container_scope" \
+            --include-inherited \
+            --output json | jq -r --arg scope "$container_scope" \
+              '[.[] | select(.roleDefinitionName == "Storage Blob Data Contributor" and (.scope | ascii_downcase) == ($scope | ascii_downcase))][0].id // ""')
+
+          if [[ -z "$assignment_id" ]]; then
+            assignment_id=$(az role assignment create \
+              --assignee-object-id "$principal_id" \
+              --assignee-principal-type ServicePrincipal \
+              --role "Storage Blob Data Contributor" \
+              --scope "$container_scope" \
+              --query id \
+              --output tsv)
+          fi
+
+          assignment_visible=false
+          for attempt in {1..20}; do
+            if az role assignment show --ids "$assignment_id" --output none 2>/dev/null; then
+              assignment_visible=true
+              break
+            fi
+            echo "Waiting for endpoint storage role assignment to propagate (attempt ${attempt}/20)..."
+            sleep 15
+          done
+
+          if [[ "$assignment_visible" != "true" ]]; then
+            echo "Role assignment '$assignment_id' was not observable after five minutes." >&2
+            exit 1
+          fi
+
+          {
+            echo "### Endpoint storage authorization"
+            echo "- Endpoint principal: \`$principal_id\`"
+            echo "- Role: \`Storage Blob Data Contributor\`"
+            echo "- Scope: \`$container_scope\`"
+          } >> "$GITHUB_STEP_SUMMARY"
