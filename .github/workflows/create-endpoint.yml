@@ -118,7 +118,7 @@ jobs:
             --output none
 
           assignment_id=$(az role assignment list \
-            --assignee "$principal_id" \
+            --assignee-object-id "$principal_id" \
             --scope "$container_scope" \
             --include-inherited \
             --output json | jq -r --arg scope "$container_scope" \
@@ -136,7 +136,13 @@ jobs:
 
           assignment_visible=false
           for attempt in {1..20}; do
-            if az role assignment show --ids "$assignment_id" --output none 2>/dev/null; then
+            visible_assignment_id=$(az role assignment list \
+              --assignee-object-id "$principal_id" \
+              --scope "$container_scope" \
+              --include-inherited \
+              --output json | jq -r --arg scope "$container_scope" \
+                '[.[] | select(.roleDefinitionName == "Storage Blob Data Contributor" and (.scope | ascii_downcase) == ($scope | ascii_downcase))][0].id // ""')
+            if [[ "$visible_assignment_id" == "$assignment_id" ]]; then
               assignment_visible=true
               break
             fi
