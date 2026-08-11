@@ -181,6 +181,40 @@ jobs:
         ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         ARM_USE_OIDC: true
+    - name: Adopt Existing Monitoring Container
+      run: |
+        set -euo pipefail
+
+        RESOURCE_ADDRESS="module.storage_account_aml.azurerm_storage_container.monitoring"
+        RESOURCE_GROUP="rg-${{ inputs.namespace }}-${{ inputs.postfix }}${{ inputs.environment }}"
+        STORAGE_ACCOUNT="st${{ inputs.namespace }}${{ inputs.postfix }}${{ inputs.environment }}"
+        CONTAINER_ID="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/monitoring"
+
+        if terraform -chdir=${{ inputs.terraform_workingdir }} state show "$RESOURCE_ADDRESS" >/dev/null 2>&1; then
+          echo "Terraform already manages the monitoring container."
+          exit 0
+        fi
+
+        if ! az resource show --ids "$CONTAINER_ID" --api-version 2023-05-01 --output none 2>/dev/null; then
+          echo "Monitoring container does not exist yet; Terraform will create it."
+          exit 0
+        fi
+
+        SP_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)
+        terraform -chdir=${{ inputs.terraform_workingdir }} import -input=false -lock-timeout=5m \
+          -var "location=${{ inputs.terraform_plan_location }}" \
+          -var "prefix=${{ inputs.namespace }}" \
+          -var "postfix=${{ inputs.postfix }}" \
+          -var "environment=${{ inputs.environment }}" \
+          -var "enable_aml_computecluster=${{ inputs.enable_aml_computecluster }}" \
+          -var "enable_monitoring=${{ inputs.enable_monitoring }}" \
+          -var "github_actions_service_principal_id=$SP_OBJECT_ID" \
+          "$RESOURCE_ADDRESS" "$CONTAINER_ID"
+      env:
+        ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        ARM_USE_OIDC: true
     - name: Terraform Plan
       run: |
         # Get the service principal object ID dynamically
